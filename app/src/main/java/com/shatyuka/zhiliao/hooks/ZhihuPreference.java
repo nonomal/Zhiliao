@@ -29,6 +29,8 @@ import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.util.Arrays;
 import java.util.Random;
 
 import de.robv.android.xposed.XC_MethodHook;
@@ -142,10 +144,8 @@ public class ZhihuPreference implements IHook {
             getKey = Preference.getMethod("C");
             setChecked = SwitchPreference.getMethod("g", boolean.class);
             getText = EditTextPreference.getMethod("i");
-            getLayoutResId_MethodName = "i";
             getResourceId_MethodName = "v";
-            onCreate_MethodName = "h";
-        } catch (NoSuchMethodException e) {
+        } catch (NoSuchMethodException ignore) {
             findPreference = Helper.getMethodByParameterTypes(BasePreferenceFragment.getSuperclass(), CharSequence.class);
             setSummary = Preference.getMethod("B0", CharSequence.class);
             setIcon = Preference.getMethod("r0", Drawable.class);
@@ -153,10 +153,19 @@ public class ZhihuPreference implements IHook {
             getKey = Preference.getMethod("o");
             setChecked = SwitchPreference.getMethod("O0", boolean.class);
             getText = EditTextPreference.getMethod("R0");
-            getLayoutResId_MethodName = "vg";
             getResourceId_MethodName = "p";
-            onCreate_MethodName = "xg";
         }
+
+        getLayoutResId_MethodName = Arrays.stream(BasePreferenceFragment.getDeclaredMethods())
+                .filter(method -> Modifier.isAbstract(method.getModifiers())
+                        && method.getReturnType() == int.class
+                        && method.getParameterCount() == 0).findFirst().get().getName();
+
+        onCreate_MethodName = Arrays.stream(BasePreferenceFragment.getDeclaredMethods())
+                .filter(method -> Modifier.isAbstract(method.getModifiers())
+                        && method.getReturnType() == void.class
+                        && method.getParameterCount() == 0).findFirst().get().getName();
+
         setOnPreferenceChangeListener = Helper.getMethodByParameterTypes(Preference, OnPreferenceChangeListener);
         setOnPreferenceClickListener = Helper.getMethodByParameterTypes(Preference, OnPreferenceClickListener);
         try {
@@ -194,12 +203,21 @@ public class ZhihuPreference implements IHook {
             SeekBarPreference_mMin = SeekBarPreference.getDeclaredField("Y");
             SeekBarPreference_mMin.setAccessible(true);
             SeekBarPreference_mSeekBarValueTextView = SeekBarPreference.getDeclaredField("s0");
+            if (SeekBarPreference_mSeekBarValueTextView.getType() != TextView.class) {
+                SeekBarPreference_mSeekBarValueTextView = SeekBarPreference.getDeclaredField("t0");
+                if (SeekBarPreference_mSeekBarValueTextView.getType() != TextView.class) {
+                    SeekBarPreference_mSeekBarValueTextView = SeekBarPreference.getDeclaredField("u0");
+                    if (SeekBarPreference_mSeekBarValueTextView.getType() != TextView.class) {
+                        throw new NoSuchFieldException("mSeekBarValueTextView");
+                    }
+                }
+            }
             SeekBarPreference_mSeekBarValueTextView.setAccessible(true);
             OnSeekBarChangeListener_seekBarPreferenceInstance = OnSeekBarChangeListener.getDeclaredField("j");
             OnSeekBarChangeListener_seekBarPreferenceInstance.setAccessible(true);
-            ListPreference_mEntries = ListPreference.getDeclaredField("s0");
+            ListPreference_mEntries = ListPreference.getDeclaredFields()[0];
             ListPreference_mEntries.setAccessible(true);
-            ListPreference_mEntryValues = ListPreference.getDeclaredField("t0");
+            ListPreference_mEntryValues = ListPreference.getDeclaredFields()[1];
             ListPreference_mEntryValues.setAccessible(true);
         }
 
@@ -383,6 +401,7 @@ public class ZhihuPreference implements IHook {
                 Object switch_videonav = findPreference.invoke(thisObject, "switch_videonav");
                 Object switch_friendnav = findPreference.invoke(thisObject, "switch_friendnav");
                 Object switch_panelnav = findPreference.invoke(thisObject, "switch_panelnav");
+                Object switch_findnav = findPreference.invoke(thisObject, "switch_findnav");
                 Object switch_article = findPreference.invoke(thisObject, "switch_article");
                 Object switch_navres = findPreference.invoke(thisObject, "switch_navres");
                 Object switch_nipple = findPreference.invoke(thisObject, "switch_nipple");
@@ -390,6 +409,8 @@ public class ZhihuPreference implements IHook {
                 Object switch_nextanswer = findPreference.invoke(thisObject, "switch_nextanswer");
                 Object preference_clean = findPreference.invoke(thisObject, "preference_clean");
                 Object switch_autoclean = findPreference.invoke(thisObject, "switch_autoclean");
+                Object switch_feedtophot = findPreference.invoke(thisObject, "switch_feedtophot");
+                Object switch_minehybrid = findPreference.invoke(thisObject, "switch_minehybrid");
 
                 setOnPreferenceChangeListener.invoke(findPreference.invoke(thisObject, "accept_eula"), thisObject);
                 setOnPreferenceClickListener.invoke(switch_externlink, thisObject);
@@ -403,6 +424,7 @@ public class ZhihuPreference implements IHook {
                 setOnPreferenceClickListener.invoke(switch_videonav, thisObject);
                 setOnPreferenceClickListener.invoke(switch_friendnav, thisObject);
                 setOnPreferenceClickListener.invoke(switch_panelnav, thisObject);
+                setOnPreferenceClickListener.invoke(switch_findnav, thisObject);
                 setOnPreferenceClickListener.invoke(switch_article, thisObject);
                 setOnPreferenceClickListener.invoke(switch_navres, thisObject);
                 setOnPreferenceClickListener.invoke(switch_nipple, thisObject);
@@ -417,35 +439,44 @@ public class ZhihuPreference implements IHook {
                 setOnPreferenceClickListener.invoke(preference_telegram, thisObject);
                 setOnPreferenceClickListener.invoke(preference_sourcecode, thisObject);
                 setOnPreferenceClickListener.invoke(preference_donate, thisObject);
+                setOnPreferenceClickListener.invoke(switch_feedtophot, thisObject);
+                setOnPreferenceClickListener.invoke(switch_minehybrid, thisObject);
 
-                String real_version = null;
-                try {
-                    real_version = Helper.context.getPackageManager().getResourcesForApplication(modulePackage).getString(R.string.app_version);
-                } catch (Exception ignore) {
-                }
                 String loaded_version = Helper.modRes.getString(R.string.app_version);
                 setSummary.invoke(preference_version, loaded_version);
-                if (real_version == null || loaded_version.equals(real_version)) {
-                    setVisible.invoke(preference_status, false);
+
+                if (Helper.officialZhihu) {
+                    String real_version = null;
+                    try {
+                        real_version = Helper.context.getPackageManager().getResourcesForApplication(modulePackage).getString(R.string.app_version);
+                    } catch (Exception ignore) {
+                    }
+                    if (real_version == null || loaded_version.equals(real_version)) {
+                        setVisible.invoke(preference_status, false);
+                    } else {
+                        setOnPreferenceClickListener.invoke(preference_status, thisObject);
+                        Object category_eula = findPreference.invoke(thisObject, "category_eula");
+                        Object category_ads = findPreference.invoke(thisObject, "category_ads");
+                        Object category_misc = findPreference.invoke(thisObject, "category_misc");
+                        Object category_ui = findPreference.invoke(thisObject, "category_ui");
+                        Object category_nav = findPreference.invoke(thisObject, "category_nav");
+                        Object category_swap_answers = findPreference.invoke(thisObject, "category_swap_answers");
+                        Object category_filter = findPreference.invoke(thisObject, "category_filter");
+                        Object category_webview = findPreference.invoke(thisObject, "category_webview");
+                        Object category_cleaner = findPreference.invoke(thisObject, "category_cleaner");
+                        setVisible.invoke(category_eula, false);
+                        setVisible.invoke(category_ads, false);
+                        setVisible.invoke(category_misc, false);
+                        setVisible.invoke(category_ui, false);
+                        setVisible.invoke(category_nav, false);
+                        setVisible.invoke(category_swap_answers, false);
+                        setVisible.invoke(category_filter, false);
+                        setVisible.invoke(category_webview, false);
+                        setVisible.invoke(category_cleaner, false);
+                        return null;
+                    }
                 } else {
-                    setOnPreferenceClickListener.invoke(preference_status, thisObject);
-                    Object category_eula = findPreference.invoke(thisObject, "category_eula");
-                    Object category_ads = findPreference.invoke(thisObject, "category_ads");
-                    Object category_misc = findPreference.invoke(thisObject, "category_misc");
-                    Object category_ui = findPreference.invoke(thisObject, "category_ui");
-                    Object category_swap_answers = findPreference.invoke(thisObject, "category_swap_answers");
-                    Object category_filter = findPreference.invoke(thisObject, "category_filter");
-                    Object category_webview = findPreference.invoke(thisObject, "category_webview");
-                    Object category_cleaner = findPreference.invoke(thisObject, "category_cleaner");
-                    setVisible.invoke(category_eula, false);
-                    setVisible.invoke(category_ads, false);
-                    setVisible.invoke(category_misc, false);
-                    setVisible.invoke(category_ui, false);
-                    setVisible.invoke(category_swap_answers, false);
-                    setVisible.invoke(category_filter, false);
-                    setVisible.invoke(category_webview, false);
-                    setVisible.invoke(category_cleaner, false);
-                    return null;
+                    setVisible.invoke(preference_status, false);
                 }
 
                 setIcon.invoke(preference_status, Helper.modRes.getDrawable(R.drawable.ic_refresh));
@@ -470,6 +501,7 @@ public class ZhihuPreference implements IHook {
                 setIcon.invoke(findPreference.invoke(thisObject, "switch_colormode"), Helper.modRes.getDrawable(R.drawable.ic_color));
                 setIcon.invoke(switch_tag, Helper.modRes.getDrawable(R.drawable.ic_label));
                 setIcon.invoke(findPreference.invoke(thisObject, "switch_statusbar"), Helper.modRes.getDrawable(R.drawable.ic_fullscreen));
+                setIcon.invoke(findPreference.invoke(thisObject, "switch_fullscreen"), Helper.modRes.getDrawable(R.drawable.ic_fullscreen_exit));
                 setIcon.invoke(switch_thirdpartylogin, Helper.modRes.getDrawable(R.drawable.ic_login));
                 setIcon.invoke(switch_livebutton, Helper.modRes.getDrawable(R.drawable.ic_live_tv));
                 setIcon.invoke(switch_reddot, Helper.modRes.getDrawable(R.drawable.ic_mark_chat_unread));
@@ -478,6 +510,7 @@ public class ZhihuPreference implements IHook {
                 setIcon.invoke(switch_videonav, Helper.modRes.getDrawable(R.drawable.ic_play_circle));
                 setIcon.invoke(switch_friendnav, Helper.modRes.getDrawable(R.drawable.ic_person_add_alt));
                 setIcon.invoke(switch_panelnav, Helper.modRes.getDrawable(R.drawable.ic_add_circle));
+                setIcon.invoke(switch_findnav, Helper.modRes.getDrawable(R.drawable.ic_cross_star));
                 setIcon.invoke(findPreference.invoke(thisObject, "switch_hotbanner"), Helper.modRes.getDrawable(R.drawable.ic_whatshot));
                 setIcon.invoke(switch_article, Helper.modRes.getDrawable(R.drawable.ic_article));
                 setIcon.invoke(switch_navres, Helper.modRes.getDrawable(R.drawable.ic_event));
@@ -502,6 +535,8 @@ public class ZhihuPreference implements IHook {
                 setIcon.invoke(preference_telegram, Helper.modRes.getDrawable(R.drawable.ic_telegram));
                 setIcon.invoke(preference_sourcecode, Helper.modRes.getDrawable(R.drawable.ic_github));
                 setIcon.invoke(preference_donate, Helper.modRes.getDrawable(R.drawable.ic_monetization));
+                setIcon.invoke(findPreference.invoke(thisObject, "switch_feedtophot"), Helper.modRes.getDrawable(R.drawable.ic_whatshot));
+                setIcon.invoke(findPreference.invoke(thisObject, "switch_minehybrid"), Helper.modRes.getDrawable(R.drawable.ic_viewcard));
 
                 if (Helper.prefs.getBoolean("accept_eula", false)) {
                     Object category_eula = findPreference.invoke(thisObject, "category_eula");
@@ -589,11 +624,14 @@ public class ZhihuPreference implements IHook {
                     case "switch_videonav":
                     case "switch_friendnav":
                     case "switch_panelnav":
+                    case "switch_findnav":
                     case "switch_article":
                     case "switch_horizontal":
                     case "switch_nextanswer":
                     case "switch_nipple":
                     case "switch_autoclean":
+                    case "switch_feedtophot":
+                    case "switch_minehybrid":
                         Helper.toast("重启知乎生效", Toast.LENGTH_SHORT);
                         break;
                 }

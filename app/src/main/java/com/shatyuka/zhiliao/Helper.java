@@ -1,13 +1,12 @@
 package com.shatyuka.zhiliao;
 
 import android.annotation.SuppressLint;
-import android.app.AlarmManager;
-import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.content.pm.Signature;
 import android.content.res.AssetManager;
 import android.content.res.Configuration;
 import android.content.res.Resources;
@@ -17,8 +16,10 @@ import android.widget.Toast;
 import java.io.File;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.security.MessageDigest;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Optional;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
@@ -44,15 +45,24 @@ public class Helper {
     public static SharedPreferences prefs;
     public static Resources modRes;
     public static PackageInfo packageInfo;
+    public static int versionCode;
 
     public static Object settingsView;
 
+    public static boolean officialZhihu = true;
+
+    public final static String hookPackage = "com.zhihu.android";
+    private final static byte[] signature = new byte[]{(byte) 0xB6, (byte) 0xF9, (byte) 0x97, (byte) 0xE3, (byte) 0x82, 0x7B, (byte) 0xE1, 0x1A, (byte) 0xF2, (byte) 0xFA, 0x4A, 0x15, 0x3F, (byte) 0xEA, 0x3F, (byte) 0xE6, 0x27, 0x68, 0x66, 0x02};
+
+    /** @noinspection RedundantSuppression*/
+    @SuppressWarnings("deprecation")
     static boolean init(ClassLoader classLoader) {
         try {
             init_class(classLoader);
 
             prefs = context.getSharedPreferences("zhiliao_preferences", Context.MODE_PRIVATE);
             packageInfo = context.getPackageManager().getPackageInfo("com.zhihu.android", 0);
+            versionCode = packageInfo.versionCode;
 
             regex_title = compileRegex(prefs.getString("edit_title", ""));
             regex_author = compileRegex(prefs.getString("edit_author", ""));
@@ -106,21 +116,15 @@ public class Helper {
         return (context.getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
     }
 
-    @SuppressLint("UnspecifiedImmutableFlag")
     public static void doRestart(Context context) {
         try {
-            if (context != null) {
-                PackageManager pm = context.getPackageManager();
-                if (pm != null) {
-                    Intent mStartActivity = pm.getLaunchIntentForPackage(context.getPackageName());
-                    if (mStartActivity != null) {
-                        mStartActivity.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-                        PendingIntent mPendingIntent = PendingIntent.getActivity(context, 0, mStartActivity, PendingIntent.FLAG_CANCEL_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-                        AlarmManager mgr = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
-                        mgr.set(AlarmManager.RTC, System.currentTimeMillis() + 100, mPendingIntent);
-                        System.exit(0);
-                    }
-                }
+            PackageManager pm = context.getPackageManager();
+            Intent launchIntent = pm.getLaunchIntentForPackage(context.getPackageName());
+            if (launchIntent != null) {
+                Intent restartIntent = Intent.makeRestartActivityTask(launchIntent.getComponent());
+                restartIntent.setPackage(context.getPackageName());
+                context.startActivity(restartIntent);
+                System.exit(0);
             }
         } catch (Exception ignored) {
         }
@@ -244,5 +248,46 @@ public class Helper {
             }
         }
         return null;
+    }
+
+    public static Field findFieldByType(Class<?> clazz, Class<?> type) {
+        Optional<Field> fieldOptional = Arrays.stream(clazz.getDeclaredFields())
+                .filter(f -> f.getType() == type).findFirst();
+        if (!fieldOptional.isPresent())
+            return null;
+
+        Field field = fieldOptional.get();
+        field.setAccessible(true);
+        return field;
+    }
+
+    /** @noinspection RedundantSuppression*/
+    @SuppressWarnings("deprecation")
+    private static Signature[] getSignatures(Context context) throws PackageManager.NameNotFoundException {
+        PackageManager pm = context.getPackageManager();
+        Signature[] sig;
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+            android.content.pm.SigningInfo sign = pm.getPackageInfo(hookPackage, PackageManager.GET_SIGNING_CERTIFICATES).signingInfo;
+            sig = sign.hasMultipleSigners() ? sign.getApkContentsSigners() : sign.getSigningCertificateHistory();
+        } else {
+            sig = pm.getPackageInfo(hookPackage, PackageManager.GET_SIGNATURES).signatures;
+        }
+        return sig;
+    }
+
+    public static boolean checkSignature(Context context) {
+        try {
+            Signature[] sig = getSignatures(context);
+            MessageDigest md = MessageDigest.getInstance("SHA1");
+            for (Signature s : sig) {
+                byte[] dig = md.digest(s.toByteArray());
+                if (Arrays.equals(dig, signature)) {
+                    return true;
+                }
+            }
+            return false;
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 }

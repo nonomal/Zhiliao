@@ -11,14 +11,19 @@ import com.shatyuka.zhiliao.hooks.CommentAd;
 import com.shatyuka.zhiliao.hooks.CustomFilter;
 import com.shatyuka.zhiliao.hooks.ExternLink;
 import com.shatyuka.zhiliao.hooks.FeedAd;
+import com.shatyuka.zhiliao.hooks.FeedTopHotBanner;
+import com.shatyuka.zhiliao.hooks.FollowButton;
+import com.shatyuka.zhiliao.hooks.HeadZoneBanner;
 import com.shatyuka.zhiliao.hooks.Horizontal;
 import com.shatyuka.zhiliao.hooks.HotBanner;
 import com.shatyuka.zhiliao.hooks.IHook;
 import com.shatyuka.zhiliao.hooks.LaunchAd;
 import com.shatyuka.zhiliao.hooks.LiveButton;
+import com.shatyuka.zhiliao.hooks.MineHybridView;
 import com.shatyuka.zhiliao.hooks.NavButton;
 import com.shatyuka.zhiliao.hooks.NavRes;
 import com.shatyuka.zhiliao.hooks.NextAnswer;
+import com.shatyuka.zhiliao.hooks.FullScreen;
 import com.shatyuka.zhiliao.hooks.RedDot;
 import com.shatyuka.zhiliao.hooks.SearchAd;
 import com.shatyuka.zhiliao.hooks.ShareAd;
@@ -58,6 +63,11 @@ public class Hooks {
             new NavRes(),
             new WebView(),
             new Cleaner(),
+            new FeedTopHotBanner(),
+            new HeadZoneBanner(),
+            new MineHybridView(),
+            new FollowButton(),
+            new FullScreen(),
     };
 
     public static void init(final ClassLoader classLoader) {
